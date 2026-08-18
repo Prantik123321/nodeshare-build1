@@ -20,10 +20,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 18
-          cache: 'npm'
+          cache: 'npm'  # This will use package-lock.json
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci  # Uses package-lock.json for deterministic installs
 
       - name: Build Windows EXE
         run: npm run build:win
@@ -58,12 +58,11 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci  # Uses package-lock.json
 
       - name: Create local.properties
         run: |
           echo "sdk.dir=$ANDROID_HOME" > android/local.properties
-          cat android/local.properties
 
       - name: Build Android APK
         run: |
