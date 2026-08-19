@@ -65,104 +65,10 @@ public class NodeService {
                 nodes.add(node);
             }
             
-            // Cache nodes
-            for (Node node : nodes) {
-                cacheNode(node);
-            }
-            
             return nodes;
             
         } catch (Exception e) {
-            // Try to load from cache
             return getCachedNodes();
-        }
-    }
-    
-    public Node createNode(Node node) throws Exception {
-        try {
-            JsonObject request = new JsonObject();
-            request.addProperty("title", node.getTitle());
-            request.addProperty("content", node.getContent() != null ? node.getContent() : "");
-            
-            if (node.getFileUrl() != null) {
-                request.addProperty("file_url", node.getFileUrl());
-                request.addProperty("file_name", node.getFileName());
-                request.addProperty("file_size", node.getFileSize());
-                request.addProperty("file_type", node.getFileType());
-            }
-            
-            ApiClient.ApiResponse response = apiClient.post("/nodes", request);
-            
-            if (!response.success) {
-                throw new Exception(response.error != null ? response.error : "Failed to create node");
-            }
-            
-            JsonObject jsonResponse = gson.fromJson(response.data, JsonObject.class);
-            JsonObject data = jsonResponse.getAsJsonObject("data");
-            JsonObject nodeJson = data.getAsJsonObject("node");
-            
-            Node createdNode = new Node();
-            createdNode.setId(nodeJson.get("id").getAsString());
-            createdNode.setUserId(nodeJson.get("user_id").getAsString());
-            createdNode.setUsername(nodeJson.get("username").getAsString());
-            createdNode.setTitle(nodeJson.get("title").getAsString());
-            if (nodeJson.has("content") && !nodeJson.get("content").isJsonNull()) {
-                createdNode.setContent(nodeJson.get("content").getAsString());
-            }
-            createdNode.setCreatedAt(nodeJson.get("created_at").getAsString());
-            
-            cacheNode(createdNode);
-            return createdNode;
-            
-        } catch (Exception e) {
-            // Queue for offline
-            queueNodeForSync(node);
-            throw new Exception("Node queued for sync when online: " + e.getMessage());
-        }
-    }
-    
-    public boolean deleteNode(String nodeId) throws Exception {
-        try {
-            ApiClient.ApiResponse response = apiClient.delete("/nodes/" + nodeId);
-            
-            if (!response.success) {
-                throw new Exception(response.error != null ? response.error : "Failed to delete node");
-            }
-            
-            deleteCachedNode(nodeId);
-            return true;
-            
-        } catch (Exception e) {
-            queueDeletionForSync(nodeId);
-            throw new Exception("Deletion queued for sync when online: " + e.getMessage());
-        }
-    }
-    
-    // Cache methods
-    private void cacheNode(Node node) {
-        try {
-            Connection conn = dbHelper.getConnection();
-            String sql = """
-                INSERT OR REPLACE INTO nodes 
-                (id, user_id, username, title, content, file_url, file_name, file_size, file_type, created_at, is_synced)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
-            """;
-            
-            PreparedStatement stmt = conn.prepareStatement(sql);
-            stmt.setString(1, node.getId());
-            stmt.setString(2, node.getUserId());
-            stmt.setString(3, node.getUsername());
-            stmt.setString(4, node.getTitle());
-            stmt.setString(5, node.getContent());
-            stmt.setString(6, node.getFileUrl());
-            stmt.setString(7, node.getFileName());
-            stmt.setLong(8, node.getFileSize());
-            stmt.setString(9, node.getFileType());
-            stmt.setString(10, node.getCreatedAt());
-            stmt.executeUpdate();
-            
-        } catch (SQLException e) {
-            System.err.println("Failed to cache node: " + e.getMessage());
         }
     }
     
@@ -193,56 +99,5 @@ public class NodeService {
             System.err.println("Failed to get cached nodes: " + e.getMessage());
         }
         return nodes;
-    }
-    
-    private void deleteCachedNode(String nodeId) {
-        try {
-            Connection conn = dbHelper.getConnection();
-            String sql = "DELETE FROM nodes WHERE id = ?";
-            PreparedStatement stmt = conn.prepareStatement(sql);
-            stmt.setString(1, nodeId);
-            stmt.executeUpdate();
-            
-        } catch (SQLException e) {
-            System.err.println("Failed to delete cached node: " + e.getMessage());
-        }
-    }
-    
-    private void queueNodeForSync(Node node) {
-        try {
-            Connection conn = dbHelper.getConnection();
-            String sql = """
-                INSERT INTO offline_queue (operation, node_id, data, created_at)
-                VALUES (?, ?, ?, datetime('now'))
-            """;
-            
-            PreparedStatement stmt = conn.prepareStatement(sql);
-            stmt.setString(1, "create");
-            stmt.setString(2, node.getId());
-            stmt.setString(3, gson.toJson(node));
-            stmt.executeUpdate();
-            
-        } catch (SQLException e) {
-            System.err.println("Failed to queue node for sync: " + e.getMessage());
-        }
-    }
-    
-    private void queueDeletionForSync(String nodeId) {
-        try {
-            Connection conn = dbHelper.getConnection();
-            String sql = """
-                INSERT INTO offline_queue (operation, node_id, data, created_at)
-                VALUES (?, ?, ?, datetime('now'))
-            """;
-            
-            PreparedStatement stmt = conn.prepareStatement(sql);
-            stmt.setString(1, "delete");
-            stmt.setString(2, nodeId);
-            stmt.setString(3, "{\"id\":\"" + nodeId + "\"}");
-            stmt.executeUpdate();
-            
-        } catch (SQLException e) {
-            System.err.println("Failed to queue deletion for sync: " + e.getMessage());
-        }
     }
 }
