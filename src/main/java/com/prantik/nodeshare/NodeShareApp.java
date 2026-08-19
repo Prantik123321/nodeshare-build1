@@ -5,7 +5,6 @@ import javafx.application.Platform;
 import javafx.stage.Stage;
 import javafx.scene.Scene;
 import com.prantik.nodeshare.controllers.AuthController;
-import com.prantik.nodeshare.controllers.FeedController;
 import com.prantik.nodeshare.utils.DatabaseHelper;
 import com.prantik.nodeshare.utils.ThemeManager;
 import java.io.File;
@@ -16,7 +15,6 @@ public class NodeShareApp extends Application {
     private Stage primaryStage;
     private ThemeManager themeManager;
     private AuthController authController;
-    private FeedController feedController;
     
     public static void main(String[] args) {
         launch(args);
@@ -89,16 +87,7 @@ public class NodeShareApp extends Application {
     public void showMainApp() {
         Platform.runLater(() -> {
             try {
-                feedController = new FeedController();
-                Scene scene = feedController.getScene();
-                themeManager.applyTheme(scene);
-                
-                primaryStage.setTitle("NodeShare — Dashboard");
-                primaryStage.setScene(scene);
-                primaryStage.setMinWidth(900);
-                primaryStage.setMinHeight(700);
-                primaryStage.show();
-                
+                // TODO: Show main feed view
                 System.out.println("✅ Main app loaded successfully");
             } catch (Exception e) {
                 e.printStackTrace();
@@ -124,9 +113,5 @@ public class NodeShareApp extends Application {
     
     public ThemeManager getThemeManager() {
         return themeManager;
-    }
-    
-    public FeedController getFeedController() {
-        return feedController;
     }
 }
