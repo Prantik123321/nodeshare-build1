@@ -46,14 +46,24 @@ jobs:
         env:
           JAVA_TOOL_OPTIONS: --module-path=C:\javafx-sdk-21\lib --add-modules=javafx.controls,javafx.fxml
 
+      - name: 📦 List target directory (debug)
+        run: |
+          echo "Listing target directory..."
+          Get-ChildItem -Path target
+        shell: pwsh
+
       - name: 📦 Create Portable EXE
         run: |
           echo "Creating portable EXE..."
+          # Find the actual JAR file name
+          $jarFile = Get-ChildItem -Path target -Filter "*.jar" | Where-Object { $_.Name -notlike "*original*" } | Select-Object -First 1
+          echo "Found JAR: $($jarFile.Name)"
+          
           jpackage `
             --type app-image `
             --name NodeShare `
             --input target `
-            --main-jar nodeshare.jar `
+            --main-jar $($jarFile.Name) `
             --main-class com.prantik.nodeshare.NodeShareApp `
             --dest target/portable `
             --java-options "--module-path=C:\javafx-sdk-21\lib --add-modules=javafx.controls,javafx.fxml"
@@ -69,4 +79,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: NodeShare-JAR
-          path: target/nodeshare.jar
+          path: target/*.jar
