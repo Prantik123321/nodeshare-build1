@@ -72,6 +72,62 @@ public class NodeService {
         }
     }
     
+    public Node createNode(Node node) throws Exception {
+        try {
+            JsonObject request = new JsonObject();
+            request.addProperty("title", node.getTitle());
+            request.addProperty("content", node.getContent() != null ? node.getContent() : "");
+            
+            if (node.getFileUrl() != null) {
+                request.addProperty("file_url", node.getFileUrl());
+                request.addProperty("file_name", node.getFileName());
+                request.addProperty("file_size", node.getFileSize());
+                request.addProperty("file_type", node.getFileType());
+            }
+            
+            ApiClient.ApiResponse response = apiClient.post("/nodes", request);
+            
+            if (!response.success) {
+                throw new Exception(response.error != null ? response.error : "Failed to create node");
+            }
+            
+            JsonObject jsonResponse = gson.fromJson(response.data, JsonObject.class);
+            JsonObject data = jsonResponse.getAsJsonObject("data");
+            JsonObject nodeJson = data.getAsJsonObject("node");
+            
+            Node createdNode = new Node();
+            createdNode.setId(nodeJson.get("id").getAsString());
+            createdNode.setUserId(nodeJson.get("user_id").getAsString());
+            createdNode.setUsername(nodeJson.get("username").getAsString());
+            createdNode.setTitle(nodeJson.get("title").getAsString());
+            if (nodeJson.has("content") && !nodeJson.get("content").isJsonNull()) {
+                createdNode.setContent(nodeJson.get("content").getAsString());
+            }
+            createdNode.setCreatedAt(nodeJson.get("created_at").getAsString());
+            
+            return createdNode;
+            
+        } catch (Exception e) {
+            throw new Exception("Failed to create node: " + e.getMessage());
+        }
+    }
+    
+    // Add the missing deleteNode method
+    public boolean deleteNode(String nodeId) throws Exception {
+        try {
+            ApiClient.ApiResponse response = apiClient.delete("/nodes/" + nodeId);
+            
+            if (!response.success) {
+                throw new Exception(response.error != null ? response.error : "Failed to delete node");
+            }
+            
+            return true;
+            
+        } catch (Exception e) {
+            throw new Exception("Failed to delete node: " + e.getMessage());
+        }
+    }
+    
     private List<Node> getCachedNodes() {
         List<Node> nodes = new ArrayList<>();
         try {
