@@ -6,6 +6,7 @@ import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
 import javafx.scene.text.Text;
+import javafx.stage.FileChooser;  // ✅ ADD THIS IMPORT
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
@@ -44,7 +45,7 @@ public class CreateNodeController {
         stage.setTitle("Share Node");
         
         root = new VBox(16);
-        root.setPadding(new Insets(32));
+        root.setPadding(new Insets(32, 32, 32, 32));
         root.setStyle("-fx-background-color: white; -fx-background-radius: 20px;");
         root.setPrefWidth(500);
         root.setMaxWidth(500);
@@ -136,7 +137,7 @@ public class CreateNodeController {
     }
     
     private void chooseFiles() {
-        FileChooser fileChooser = new FileChooser();
+        FileChooser fileChooser = new FileChooser();  // ✅ Now works with import
         fileChooser.setTitle("Select Files");
         fileChooser.getExtensionFilters().addAll(
             new FileChooser.ExtensionFilter("All Files", "*.*"),
@@ -200,7 +201,6 @@ public class CreateNodeController {
                 
                 // If files selected, handle file upload (simplified)
                 if (!selectedFiles.isEmpty()) {
-                    // In production, upload files to server
                     File firstFile = selectedFiles.get(0);
                     node.setFileName(firstFile.getName());
                     node.setFileUrl("https://nodeshare.com/files/" + firstFile.getName());
