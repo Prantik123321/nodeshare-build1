@@ -8,46 +8,46 @@ on:
 jobs:
   build:
     runs-on: windows-latest
-    env:
-      ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
 
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
 
       - name: 🔧 Setup Java 21
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '21'
           cache: 'maven'
 
-      - name: 📦 Download and Extract JavaFX
+      - name: 📦 Download JavaFX SDK
         run: |
           echo "Downloading JavaFX SDK..."
-          curl -L -o javafx.zip "https://download2.gluonhq.com/openjfx/21.0.1/openjfx-21.0.1_windows-x64_bin-sdk.zip"
+          Invoke-WebRequest -Uri "https://download2.gluonhq.com/openjfx/21.0.1/openjfx-21.0.1_windows-x64_bin-sdk.zip" -OutFile "javafx.zip"
+          Expand-Archive -Path "javafx.zip" -DestinationPath "C:\" -Force
           
-          echo "Extracting JavaFX..."
-          Expand-Archive -Path javafx.zip -DestinationPath C:\
-          
-          # Find the actual extracted folder name
-          $extractedFolder = Get-ChildItem -Path C:\ -Directory | Where-Object { $_.Name -like "*openjfx*" } | Select-Object -First 1
-          
-          if ($extractedFolder) {
-              Rename-Item -Path $extractedFolder.FullName -NewName "javafx-sdk-21"
+          # Find the extracted folder
+          $folder = Get-ChildItem -Path "C:\" -Directory | Where-Object { $_.Name -match "openjfx|javafx-sdk" } | Select-Object -First 1
+          if ($folder) {
+              Move-Item -Path $folder.FullName -Destination "C:\javafx-sdk-21" -Force
               echo "✅ JavaFX installed at C:\javafx-sdk-21"
           } else {
-              echo "❌ Failed to find extracted JavaFX folder"
+              echo "❌ Could not find JavaFX folder"
+              Get-ChildItem -Path "C:\"
               exit 1
           }
         shell: pwsh
 
-      - name: 📦 Build Fat JAR
-        run: mvn clean package assembly:single
+      - name: 📦 Build JAR with dependencies
+        run: |
+          echo "Building JAR..."
+          mvn clean compile
+          mvn package assembly:single
+        shell: cmd
         env:
           JAVA_TOOL_OPTIONS: --module-path=C:\javafx-sdk-21\lib --add-modules=javafx.controls,javafx.fxml
 
-      - name: 📦 Create Portable EXE with jpackage
+      - name: 📦 Create Portable EXE
         run: |
           echo "Creating portable EXE..."
           jpackage `
@@ -57,7 +57,6 @@ jobs:
             --main-jar nodeshare.jar `
             --main-class com.prantik.nodeshare.NodeShareApp `
             --dest target/portable `
-            --win-console `
             --win-dir-chooser `
             --win-shortcut `
             --win-menu `
