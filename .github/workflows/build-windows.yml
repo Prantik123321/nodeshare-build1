@@ -46,7 +46,7 @@ jobs:
         env:
           JAVA_TOOL_OPTIONS: --module-path=C:\javafx-sdk-21\lib --add-modules=javafx.controls,javafx.fxml
 
-      - name: 📦 Create Portable EXE with jpackage
+      - name: 📦 Create Portable EXE
         run: |
           echo "Creating portable EXE..."
           jpackage `
@@ -56,9 +56,6 @@ jobs:
             --main-jar nodeshare.jar `
             --main-class com.prantik.nodeshare.NodeShareApp `
             --dest target/portable `
-            --win-console `
-            --win-shortcut `
-            --win-menu `
             --java-options "--module-path=C:\javafx-sdk-21\lib --add-modules=javafx.controls,javafx.fxml"
         shell: pwsh
 
