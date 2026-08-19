@@ -1,0 +1,8 @@
+.root {
+    -fx-background-color: #f0f2f5;
+}
+
+.card {
+    -fx-background-color: white;
+    -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.06), 8, 0, 0, 2);
+}
