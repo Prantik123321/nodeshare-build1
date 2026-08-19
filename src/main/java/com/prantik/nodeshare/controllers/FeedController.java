@@ -35,7 +35,7 @@ public class FeedController {
         // Header
         HBox header = new HBox(16);
         header.setAlignment(Pos.CENTER_LEFT);
-        header.setPadding(new Insets(12, 24, 12, 24)); // Fixed: 4 parameters
+        header.setPadding(new Insets(12, 24, 12, 24));
         header.setStyle("-fx-background-color: white; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.05), 4, 0, 0, 2);");
         
         Text title = new Text("📦 NodeShare");
@@ -63,7 +63,7 @@ public class FeedController {
         
         // Sidebar
         VBox sidebar = new VBox(4);
-        sidebar.setPadding(new Insets(16, 0, 16, 0)); // Fixed: 4 parameters
+        sidebar.setPadding(new Insets(16, 0, 16, 0));
         sidebar.setPrefWidth(200);
         sidebar.setStyle("-fx-background-color: white; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.05), 4, 0, 0, 2);");
         
@@ -80,7 +80,7 @@ public class FeedController {
         }
         
         VBox sidebarBottom = new VBox(8);
-        sidebarBottom.setPadding(new Insets(16, 0, 0, 0)); // Fixed: 4 parameters
+        sidebarBottom.setPadding(new Insets(16, 0, 0, 0));
         sidebarBottom.setStyle("-fx-border-color: #e1e5eb; -fx-border-width: 1 0 0 0; -fx-padding: 16px 0 0 0;");
         
         createNodeBtn = new Button("➕ Share Node");
@@ -94,7 +94,7 @@ public class FeedController {
         
         // Feed
         feedContainer = new VBox(16);
-        feedContainer.setPadding(new Insets(20, 20, 20, 20)); // Fixed: 4 parameters
+        feedContainer.setPadding(new Insets(20, 20, 20, 20));
         
         scrollPane = new ScrollPane(feedContainer);
         scrollPane.setStyle("-fx-background-color: transparent; -fx-padding: 0 20px 20px 20px;");
@@ -139,7 +139,7 @@ public class FeedController {
     
     private VBox createNodeCard(Node node) {
         VBox card = new VBox(8);
-        card.setPadding(new Insets(20, 20, 20, 20)); // Fixed: 4 parameters
+        card.setPadding(new Insets(20, 20, 20, 20));
         card.setStyle("-fx-background-color: white; -fx-background-radius: 16px; " +
                       "-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.06), 8, 0, 0, 2);");
         card.setMaxWidth(800);
@@ -163,7 +163,7 @@ public class FeedController {
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
         
-        Label type = new Label("Note");
+        Label type = new Label(node.getTags() != null ? node.getTags() : "Note");
         type.setStyle("-fx-background-color: #f0f2f5; -fx-text-fill: #6b7a8a; -fx-font-size: 11px; " +
                       "-fx-font-weight: 600; -fx-padding: 4px 12px; -fx-background-radius: 12px;");
         
@@ -179,7 +179,7 @@ public class FeedController {
         
         // Actions
         HBox actions = new HBox(8);
-        actions.setPadding(new Insets(8, 0, 0, 0)); // Fixed: 4 parameters
+        actions.setPadding(new Insets(8, 0, 0, 0));
         
         Button downloadBtn = new Button("📥 Download");
         downloadBtn.setStyle("-fx-background-color: #4f7cff; -fx-text-fill: white; -fx-font-size: 12px; " +
@@ -188,6 +188,7 @@ public class FeedController {
         Button deleteBtn = new Button("🗑️ Delete");
         deleteBtn.setStyle("-fx-background-color: #e74c3c; -fx-text-fill: white; -fx-font-size: 12px; " +
                            "-fx-font-weight: 500; -fx-padding: 6px 16px; -fx-background-radius: 8px;");
+        // Fix: Use the correct method - deleteNode
         deleteBtn.setOnAction(e -> deleteNode(node.getId()));
         
         actions.getChildren().addAll(downloadBtn, deleteBtn);
@@ -199,7 +200,7 @@ public class FeedController {
     private void showEmptyState() {
         VBox empty = new VBox(12);
         empty.setAlignment(Pos.CENTER);
-        empty.setPadding(new Insets(60, 20, 60, 20)); // Fixed: 4 parameters
+        empty.setPadding(new Insets(60, 20, 60, 20));
         
         Label icon = new Label("📦");
         icon.setStyle("-fx-font-size: 48px;");
@@ -233,6 +234,7 @@ public class FeedController {
             if (response == ButtonType.OK) {
                 new Thread(() -> {
                     try {
+                        // Fix: Use deleteNode method
                         nodeService.deleteNode(nodeId);
                         Platform.runLater(() -> loadNodes());
                     } catch (Exception e) {
