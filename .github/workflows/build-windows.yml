@@ -1,4 +1,4 @@
-name: Build Portable Windows EXE
+name: Build Portable EXE
 
 on:
   push:
@@ -10,83 +10,43 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - name: 📥 Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: 🔧 Setup Java 21
+      - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '21'
           cache: 'maven'
 
-      - name: 📦 Download JavaFX SDK
+      - name: Download JavaFX
         run: |
-          echo "Downloading JavaFX SDK..."
-          Invoke-WebRequest -Uri "https://download2.gluonhq.com/openjfx/21.0.1/openjfx-21.0.1_windows-x64_bin-sdk.zip" -OutFile "javafx.zip"
-          Expand-Archive -Path "javafx.zip" -DestinationPath "C:\" -Force
-          
-          $folder = Get-ChildItem -Path "C:\" -Directory | Where-Object { $_.Name -match "openjfx|javafx-sdk" } | Select-Object -First 1
-          if ($folder) {
-              Move-Item -Path $folder.FullName -Destination "C:\javafx-sdk-21" -Force
-              echo "✅ JavaFX installed at C:\javafx-sdk-21"
-          } else {
-              echo "❌ Could not find JavaFX folder"
-              Get-ChildItem -Path "C:\"
-              exit 1
-          }
-        shell: pwsh
+          curl -L -o javafx.zip https://download2.gluonhq.com/openjfx/21.0.1/openjfx-21.0.1_windows-x64_bin-sdk.zip
+          unzip -q javafx.zip -d C:\
+          mv C:\openjfx-* C:\javafx-sdk-21
+        shell: bash
 
-      - name: 📦 Build and Package JAR
+      - name: Build JAR
         run: |
-          echo "Building JAR..."
           mvn clean compile
           mvn package
-          echo "JAR build complete. Listing target directory:"
-          dir target
         shell: cmd
         env:
           JAVA_TOOL_OPTIONS: --module-path=C:\javafx-sdk-21\lib --add-modules=javafx.controls,javafx.fxml
 
-      - name: 📦 Create Portable EXE
+      - name: Create EXE
         run: |
-          echo "Creating portable EXE..."
-          echo "Current directory:"
-          pwd
-          echo "Target directory contents:"
-          Get-ChildItem -Path target
-          
-          # Look for the JAR file (any JAR in target)
-          $jarFile = Get-ChildItem -Path target -Filter "*.jar" | Select-Object -First 1
-          
-          if ($jarFile) {
-              echo "Found JAR: $($jarFile.FullName)"
-              echo "JAR Name: $($jarFile.Name)"
-              
-              jpackage `
-                --type app-image `
-                --name NodeShare `
-                --input target `
-                --main-jar "$($jarFile.Name)" `
-                --main-class com.prantik.nodeshare.NodeShareApp `
-                --dest target/portable `
-                --java-options "--module-path=C:\javafx-sdk-21\lib --add-modules=javafx.controls,javafx.fxml"
-          } else {
-              echo "❌ ERROR: No JAR file found in target directory!"
-              echo "Full directory listing:"
-              Get-ChildItem -Path target -Recurse
-              exit 1
-          }
-        shell: pwsh
+          cd target
+          for %%f in (*.jar) do (
+            echo Creating EXE from: %%f
+            jpackage --type app-image --name NodeShare --input . --main-jar "%%f" --main-class com.prantik.nodeshare.NodeShareApp --dest portable --java-options "--module-path=C:\javafx-sdk-21\lib --add-modules=javafx.controls,javafx.fxml"
+            goto :done
+          )
+          :done
+        shell: cmd
 
-      - name: 📤 Upload Portable EXE
+      - name: Upload
         uses: actions/upload-artifact@v4
         with:
-          name: NodeShare-Portable
+          name: NodeShare
           path: target/portable/NodeShare
-
-      - name: 📤 Upload JAR
-        uses: actions/upload-artifact@v4
-        with:
-          name: NodeShare-JAR
-          path: target/*.jar
