@@ -35,7 +35,7 @@ public class FeedController {
         // Header
         HBox header = new HBox(16);
         header.setAlignment(Pos.CENTER_LEFT);
-        header.setPadding(new Insets(12, 24));
+        header.setPadding(new Insets(12, 24, 12, 24)); // Fixed: 4 parameters
         header.setStyle("-fx-background-color: white; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.05), 4, 0, 0, 2);");
         
         Text title = new Text("📦 NodeShare");
@@ -63,7 +63,7 @@ public class FeedController {
         
         // Sidebar
         VBox sidebar = new VBox(4);
-        sidebar.setPadding(new Insets(16, 0));
+        sidebar.setPadding(new Insets(16, 0, 16, 0)); // Fixed: 4 parameters
         sidebar.setPrefWidth(200);
         sidebar.setStyle("-fx-background-color: white; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.05), 4, 0, 0, 2);");
         
@@ -80,7 +80,7 @@ public class FeedController {
         }
         
         VBox sidebarBottom = new VBox(8);
-        sidebarBottom.setPadding(new Insets(16, 0, 0, 0));
+        sidebarBottom.setPadding(new Insets(16, 0, 0, 0)); // Fixed: 4 parameters
         sidebarBottom.setStyle("-fx-border-color: #e1e5eb; -fx-border-width: 1 0 0 0; -fx-padding: 16px 0 0 0;");
         
         createNodeBtn = new Button("➕ Share Node");
@@ -94,7 +94,7 @@ public class FeedController {
         
         // Feed
         feedContainer = new VBox(16);
-        feedContainer.setPadding(new Insets(20));
+        feedContainer.setPadding(new Insets(20, 20, 20, 20)); // Fixed: 4 parameters
         
         scrollPane = new ScrollPane(feedContainer);
         scrollPane.setStyle("-fx-background-color: transparent; -fx-padding: 0 20px 20px 20px;");
@@ -139,7 +139,7 @@ public class FeedController {
     
     private VBox createNodeCard(Node node) {
         VBox card = new VBox(8);
-        card.setPadding(new Insets(20));
+        card.setPadding(new Insets(20, 20, 20, 20)); // Fixed: 4 parameters
         card.setStyle("-fx-background-color: white; -fx-background-radius: 16px; " +
                       "-fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.06), 8, 0, 0, 2);");
         card.setMaxWidth(800);
@@ -179,7 +179,7 @@ public class FeedController {
         
         // Actions
         HBox actions = new HBox(8);
-        actions.setPadding(new Insets(8, 0, 0, 0));
+        actions.setPadding(new Insets(8, 0, 0, 0)); // Fixed: 4 parameters
         
         Button downloadBtn = new Button("📥 Download");
         downloadBtn.setStyle("-fx-background-color: #4f7cff; -fx-text-fill: white; -fx-font-size: 12px; " +
@@ -199,7 +199,7 @@ public class FeedController {
     private void showEmptyState() {
         VBox empty = new VBox(12);
         empty.setAlignment(Pos.CENTER);
-        empty.setPadding(new Insets(60, 20));
+        empty.setPadding(new Insets(60, 20, 60, 20)); // Fixed: 4 parameters
         
         Label icon = new Label("📦");
         icon.setStyle("-fx-font-size: 48px;");
@@ -218,8 +218,9 @@ public class FeedController {
     }
     
     private void showCreateNodeModal() {
-        // TODO: Implement create node modal
-        System.out.println("📝 Create node modal - To be implemented");
+        CreateNodeController controller = new CreateNodeController();
+        controller.setOnSuccess(() -> loadNodes());
+        controller.show();
     }
     
     private void deleteNode(String nodeId) {
