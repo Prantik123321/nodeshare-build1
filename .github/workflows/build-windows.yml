@@ -37,44 +37,44 @@ jobs:
           }
         shell: pwsh
 
-      - name: 📦 Build JAR with dependencies
+      - name: 📦 Build and Package JAR
         run: |
           echo "Building JAR..."
           mvn clean compile
-          mvn package assembly:single
+          mvn package
+          echo "JAR build complete. Listing target directory:"
+          dir target
         shell: cmd
         env:
           JAVA_TOOL_OPTIONS: --module-path=C:\javafx-sdk-21\lib --add-modules=javafx.controls,javafx.fxml
 
-      - name: 📦 List target directory (debug)
-        run: |
-          echo "Listing target directory..."
-          Get-ChildItem -Path target -Recurse
-        shell: pwsh
-
       - name: 📦 Create Portable EXE
         run: |
           echo "Creating portable EXE..."
+          echo "Current directory:"
+          pwd
+          echo "Target directory contents:"
+          Get-ChildItem -Path target
           
-          # Find the JAR file (exclude original and source jars)
-          $jarFile = Get-ChildItem -Path target -Filter "*.jar" | Where-Object { 
-              $_.Name -notlike "*original*" -and $_.Name -notlike "*sources*" 
-          } | Select-Object -First 1
+          # Look for the JAR file (any JAR in target)
+          $jarFile = Get-ChildItem -Path target -Filter "*.jar" | Select-Object -First 1
           
           if ($jarFile) {
-              echo "Found JAR: $($jarFile.Name)"
+              echo "Found JAR: $($jarFile.FullName)"
+              echo "JAR Name: $($jarFile.Name)"
               
               jpackage `
                 --type app-image `
                 --name NodeShare `
                 --input target `
                 --main-jar "$($jarFile.Name)" `
-                --main-class "com.prantik.nodeshare.NodeShareApp" `
+                --main-class com.prantik.nodeshare.NodeShareApp `
                 --dest target/portable `
                 --java-options "--module-path=C:\javafx-sdk-21\lib --add-modules=javafx.controls,javafx.fxml"
           } else {
-              echo "❌ No JAR file found in target directory!"
-              Get-ChildItem -Path target
+              echo "❌ ERROR: No JAR file found in target directory!"
+              echo "Full directory listing:"
+              Get-ChildItem -Path target -Recurse
               exit 1
           }
         shell: pwsh
