@@ -6,7 +6,7 @@ import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
 import javafx.scene.text.Text;
-import javafx.stage.FileChooser;  // ✅ ADD THIS IMPORT
+import javafx.stage.FileChooser;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
@@ -137,7 +137,7 @@ public class CreateNodeController {
     }
     
     private void chooseFiles() {
-        FileChooser fileChooser = new FileChooser();  // ✅ Now works with import
+        FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("Select Files");
         fileChooser.getExtensionFilters().addAll(
             new FileChooser.ExtensionFilter("All Files", "*.*"),
@@ -197,7 +197,8 @@ public class CreateNodeController {
                 Node node = new Node();
                 node.setTitle(title);
                 node.setContent(content);
-                node.setTags(List.of(type));
+                // Fix: Convert List<String> to String by joining with comma
+                node.setTags(type != null ? type : "Note");
                 
                 // If files selected, handle file upload (simplified)
                 if (!selectedFiles.isEmpty()) {
@@ -207,6 +208,7 @@ public class CreateNodeController {
                     node.setFileSize(firstFile.length());
                 }
                 
+                // Fix: Use the correct method name - createNode
                 Node created = nodeService.createNode(node);
                 
                 Platform.runLater(() -> {
