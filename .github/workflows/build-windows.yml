@@ -1,6 +1,6 @@
 name: Build Portable Windows EXE
 
-on:
+'on':
   push:
     branches:
       - main
@@ -8,11 +8,10 @@ on:
 
 jobs:
   build:
-    name: Build NodeShare
+    name: Build NodeShare for Windows
     runs-on: windows-latest
 
     steps:
-
       - name: Checkout code
         uses: actions/checkout@v4
 
@@ -26,210 +25,143 @@ jobs:
       - name: Download JavaFX SDK
         shell: pwsh
         run: |
-          $ErrorActionPreference = "Stop"
+          $ErrorActionPreference = 'Stop'
 
-          $url = "https://download2.gluonhq.com/openjfx/21.0.1/openjfx-21.0.1_windows-x64_bin-sdk.zip"
-          $zip = "$env:RUNNER_TEMP\javafx.zip"
-          $extract = "$env:RUNNER_TEMP\javafx"
-          $javafxPath = "C:\javafx-sdk-21"
+          $url = 'https://download2.gluonhq.com/openjfx/21.0.1/openjfx-21.0.1_windows-x64_bin-sdk.zip'
+          $zip = Join-Path $env:RUNNER_TEMP 'javafx.zip'
+          $extract = Join-Path $env:RUNNER_TEMP 'javafx'
+          $javafxPath = 'C:\javafx-sdk-21'
 
-          Write-Host "Downloading JavaFX SDK..."
-
-          Invoke-WebRequest `
-            -Uri $url `
-            -OutFile $zip
+          Write-Host 'Downloading JavaFX SDK...'
+          Invoke-WebRequest -Uri $url -OutFile $zip
 
           if (Test-Path $extract) {
             Remove-Item $extract -Recurse -Force
           }
 
-          Expand-Archive `
-            -Path $zip `
-            -DestinationPath $extract `
-            -Force
+          Expand-Archive -Path $zip -DestinationPath $extract -Force
 
-          $javafxFolder = Get-ChildItem `
-            -Path $extract `
-            -Directory |
-            Where-Object { $_.Name -like "javafx-sdk-*" } |
+          $javafxFolder = Get-ChildItem -Path $extract -Directory |
+            Where-Object { $_.Name -like 'javafx-sdk-*' } |
             Select-Object -First 1
 
           if (-not $javafxFolder) {
-            Write-Host "JavaFX SDK folder not found."
-            Get-ChildItem $extract -Recurse
-            exit 1
+            Write-Error 'JavaFX SDK folder was not found.'
           }
 
           if (Test-Path $javafxPath) {
             Remove-Item $javafxPath -Recurse -Force
           }
 
-          Move-Item `
-            -Path $javafxFolder.FullName `
-            -Destination $javafxPath
+          Move-Item -Path $javafxFolder.FullName -Destination $javafxPath
 
-          if (-not (Test-Path "$javafxPath\lib")) {
-            Write-Host "JavaFX lib folder not found."
-            exit 1
+          if (-not (Test-Path (Join-Path $javafxPath 'lib'))) {
+            Write-Error 'JavaFX lib folder was not found.'
           }
 
-          Write-Host "JavaFX installed successfully."
+          Write-Host "JavaFX installed at $javafxPath"
 
       - name: Build JAR
         shell: cmd
         env:
           JAVA_TOOL_OPTIONS: "--module-path=C:\javafx-sdk-21\lib --add-modules=javafx.controls,javafx.fxml"
         run: |
-          echo Building NodeShare...
-
-          mvn clean compile
-
-          if errorlevel 1 (
-            echo Maven compile failed.
+          echo Building NodeShare JAR...
+          mvn clean package
+          if errorlevel 1 exit /b 1
+          if not exist target\nodeshare.jar (
+            echo ERROR: target\nodeshare.jar was not created.
+            dir target
             exit /b 1
           )
+          echo JAR build successful.
 
-          mvn package assembly:single
-
-          if errorlevel 1 (
-            echo Maven package failed.
-            exit /b 1
-          )
-
-          echo Build completed.
-
-          dir target
-
-      - name: Find application JAR
+      - name: Create Portable Windows App
         shell: pwsh
         run: |
-          $ErrorActionPreference = "Stop"
+          $ErrorActionPreference = 'Stop'
 
-          $jars = @(
-            Get-ChildItem `
-              -Path "target" `
-              -Filter "*.jar" `
-              -File |
-            Where-Object {
-              $_.Name -notmatch "sources" -and
-              $_.Name -notmatch "javadoc" -and
-              $_.Name -notmatch "^original-"
-            }
-          )
-
-          if ($jars.Count -eq 0) {
-            Write-Host "No application JAR found."
-            Get-ChildItem target -Recurse
-            exit 1
-          }
-
-          Write-Host "JAR files found:"
-
-          foreach ($jar in $jars) {
-            Write-Host " - $($jar.Name)"
-          }
-
-          $appJar = $jars |
-            Where-Object {
-              $_.Name -match "jar-with-dependencies|all|fat|uber"
-            } |
-            Select-Object -First 1
-
-          if (-not $appJar) {
-            $appJar = $jars |
-              Sort-Object Length -Descending |
-              Select-Object -First 1
-          }
-
-          Write-Host "Selected JAR: $($appJar.Name)"
-
-          "APP_JAR_NAME=$($appJar.Name)" >> $env:GITHUB_ENV
-
-      - name: Create Portable Windows EXE
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = "Stop"
-
-          $output = "target\portable"
+          $output = 'target\portable'
+          $jar = 'target\nodeshare.jar'
 
           if (Test-Path $output) {
             Remove-Item $output -Recurse -Force
           }
 
-          New-Item `
-            -ItemType Directory `
-            -Path $output `
-            -Force | Out-Null
+          New-Item -ItemType Directory -Path $output -Force | Out-Null
 
-          Write-Host "Creating NodeShare portable application..."
+          if (-not (Test-Path $jar)) {
+            Write-Error 'target\nodeshare.jar does not exist.'
+          }
+
+          Write-Host 'Creating portable Windows application...'
 
           jpackage `
             --type app-image `
             --name NodeShare `
             --input target `
-            --main-jar "$env:APP_JAR_NAME" `
+            --main-jar nodeshare.jar `
             --main-class com.prantik.nodeshare.NodeShareApp `
-            --module-path "C:\javafx-sdk-21\lib" `
-            --add-modules "javafx.controls,javafx.fxml" `
-            --dest "$output" `
-            --app-version "1.0.0" `
-            --vendor "Prantik" `
-            --description "NodeShare - Share and discover knowledge"
+            --module-path 'C:\javafx-sdk-21\lib' `
+            --add-modules 'javafx.controls,javafx.fxml' `
+            --dest $output `
+            --app-version '1.0.0' `
+            --vendor 'Prantik' `
+            --description 'NodeShare - Share and discover knowledge'
 
           if ($LASTEXITCODE -ne 0) {
-            Write-Host "jpackage failed."
-            exit 1
+            Write-Error 'jpackage failed.'
           }
 
-          $exe = "$output\NodeShare\NodeShare.exe"
+          $exe = Join-Path $output 'NodeShare\NodeShare.exe'
 
           if (-not (Test-Path $exe)) {
-            Write-Host "NodeShare.exe was not created."
-            Get-ChildItem $output -Recurse
-            exit 1
+            Write-Error 'NodeShare.exe was not created.'
           }
 
-          Write-Host "NodeShare.exe created successfully."
-          Write-Host $exe
+          Write-Host "Portable EXE created: $exe"
 
-      - name: Test Portable EXE
+      - name: Verify Portable App Files
         shell: pwsh
         run: |
-          $exe = "target\portable\NodeShare\NodeShare.exe"
+          $ErrorActionPreference = 'Stop'
+
+          $appDir = 'target\portable\NodeShare'
+          $exe = Join-Path $appDir 'NodeShare.exe'
+          $runtime = Join-Path $appDir 'runtime'
 
           if (-not (Test-Path $exe)) {
-            Write-Host "EXE not found."
-            exit 1
+            Write-Error 'NodeShare.exe is missing.'
           }
 
-          Write-Host "EXE exists successfully."
-          Write-Host "Size: $((Get-Item $exe).Length) bytes"
+          if (-not (Test-Path $runtime)) {
+            Write-Error 'Bundled Java runtime is missing.'
+          }
+
+          Write-Host 'Portable app verification passed.'
+          Write-Host "EXE size: $((Get-Item $exe).Length) bytes"
 
       - name: Create Portable ZIP
         shell: pwsh
         run: |
-          $ErrorActionPreference = "Stop"
+          $ErrorActionPreference = 'Stop'
 
-          $source = "target\portable\NodeShare"
-          $zip = "target\NodeShare-Portable-Windows.zip"
+          $source = 'target\portable\NodeShare'
+          $zip = 'target\NodeShare-Portable-Windows.zip'
 
           if (Test-Path $zip) {
             Remove-Item $zip -Force
           }
 
-          Compress-Archive `
-            -Path $source `
-            -DestinationPath $zip `
-            -CompressionLevel Optimal
+          Compress-Archive -Path $source -DestinationPath $zip -CompressionLevel Optimal
 
           if (-not (Test-Path $zip)) {
-            Write-Host "ZIP creation failed."
-            exit 1
+            Write-Error 'Portable ZIP was not created.'
           }
 
-          Write-Host "Portable ZIP created successfully."
+          Write-Host "Created: $zip"
 
-      - name: Upload Portable ZIP
+      - name: Upload Portable Windows Build
         uses: actions/upload-artifact@v4
         with:
           name: NodeShare-Portable-Windows
@@ -249,6 +181,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: NodeShare-JAR
-          path: target/*.jar
+          path: target/nodeshare.jar
           if-no-files-found: error
           retention-days: 30
