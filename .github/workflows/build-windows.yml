@@ -1,135 +1,167 @@
-name: 🚀 Build Portable Windows EXE
+name: Build Portable Windows EXE
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
   workflow_dispatch:
 
 jobs:
   build:
-    name: 🏗️ Build NodeShare
+    name: Build NodeShare
     runs-on: windows-latest
 
     steps:
-      # =========================================================
-      # 1. CHECKOUT CODE
-      # =========================================================
-      - name: 📥 Checkout code
+
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      # =========================================================
-      # 2. SETUP JAVA 21
-      # =========================================================
-      - name: ☕ Setup Java 21
+      - name: Setup Java 21
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '21'
           cache: maven
 
-      # =========================================================
-      # 3. DOWNLOAD JAVAFX
-      # =========================================================
-      - name: 📦 Download JavaFX SDK
+      - name: Download JavaFX SDK
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
-          Write-Host "📥 Downloading JavaFX SDK..." -ForegroundColor Cyan
 
           $url = "https://download2.gluonhq.com/openjfx/21.0.1/openjfx-21.0.1_windows-x64_bin-sdk.zip"
           $zip = "$env:RUNNER_TEMP\javafx.zip"
           $extract = "$env:RUNNER_TEMP\javafx"
+          $javafxPath = "C:\javafx-sdk-21"
 
-          # Download
-          Invoke-WebRequest -Uri $url -OutFile $zip -UseBasicParsing
-          Write-Host "✅ Downloaded JavaFX SDK"
+          Write-Host "Downloading JavaFX SDK..."
 
-          # Extract
-          Write-Host "📂 Extracting JavaFX..."
-          if (Test-Path $extract) { Remove-Item $extract -Recurse -Force }
-          Expand-Archive -Path $zip -DestinationPath $extract -Force
+          Invoke-WebRequest `
+            -Uri $url `
+            -OutFile $zip
 
-          # Find the folder
-          $javafxFolder = Get-ChildItem -Path $extract -Directory | Where-Object { $_.Name -match "javafx-sdk" } | Select-Object -First 1
-          if (-not $javafxFolder) {
-              Write-Host "❌ JavaFX SDK folder not found." -ForegroundColor Red
-              Get-ChildItem $extract -Recurse
-              exit 1
+          if (Test-Path $extract) {
+            Remove-Item $extract -Recurse -Force
           }
 
-          # Move to C:\
-          $javafxPath = "C:\javafx-sdk-21"
-          if (Test-Path $javafxPath) { Remove-Item $javafxPath -Recurse -Force }
-          Move-Item -Path $javafxFolder.FullName -Destination $javafxPath
+          Expand-Archive `
+            -Path $zip `
+            -DestinationPath $extract `
+            -Force
+
+          $javafxFolder = Get-ChildItem `
+            -Path $extract `
+            -Directory |
+            Where-Object { $_.Name -like "javafx-sdk-*" } |
+            Select-Object -First 1
+
+          if (-not $javafxFolder) {
+            Write-Host "JavaFX SDK folder not found."
+            Get-ChildItem $extract -Recurse
+            exit 1
+          }
+
+          if (Test-Path $javafxPath) {
+            Remove-Item $javafxPath -Recurse -Force
+          }
+
+          Move-Item `
+            -Path $javafxFolder.FullName `
+            -Destination $javafxPath
 
           if (-not (Test-Path "$javafxPath\lib")) {
-              Write-Host "❌ JavaFX lib folder not found." -ForegroundColor Red
-              exit 1
+            Write-Host "JavaFX lib folder not found."
+            exit 1
           }
 
-          Write-Host "✅ JavaFX installed at: $javafxPath" -ForegroundColor Green
+          Write-Host "JavaFX installed successfully."
 
-      # =========================================================
-      # 4. BUILD JAR
-      # =========================================================
-      - name: 📦 Build JAR with dependencies
+      - name: Build JAR
         shell: cmd
         env:
           JAVA_TOOL_OPTIONS: "--module-path=C:\javafx-sdk-21\lib --add-modules=javafx.controls,javafx.fxml"
         run: |
-          echo "🔨 Building Java application..."
+          echo Building NodeShare...
+
           mvn clean compile
-          if errorlevel 1 exit /b 1
+
+          if errorlevel 1 (
+            echo Maven compile failed.
+            exit /b 1
+          )
+
           mvn package assembly:single
-          if errorlevel 1 exit /b 1
-          echo "✅ Build successful!"
+
+          if errorlevel 1 (
+            echo Maven package failed.
+            exit /b 1
+          )
+
+          echo Build completed.
+
           dir target
 
-      # =========================================================
-      # 5. FIND JAR
-      # =========================================================
-      - name: 🔍 Find application JAR
+      - name: Find application JAR
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
-          Write-Host "🔍 Searching for application JAR..." -ForegroundColor Cyan
 
-          $jars = Get-ChildItem -Path "target" -Filter "*.jar" -File | Where-Object {
-              $_.Name -notmatch "sources|javadoc|original-"
-          }
+          $jars = @(
+            Get-ChildItem `
+              -Path "target" `
+              -Filter "*.jar" `
+              -File |
+            Where-Object {
+              $_.Name -notmatch "sources" -and
+              $_.Name -notmatch "javadoc" -and
+              $_.Name -notmatch "^original-"
+            }
+          )
 
           if ($jars.Count -eq 0) {
-              Write-Host "❌ No JAR found!" -ForegroundColor Red
-              Get-ChildItem target -Recurse
-              exit 1
+            Write-Host "No application JAR found."
+            Get-ChildItem target -Recurse
+            exit 1
           }
 
-          Write-Host "📄 JAR files found:"
-          $jars | ForEach-Object { Write-Host "  - $($_.Name)" }
+          Write-Host "JAR files found:"
 
-          # Prefer fat JAR
-          $appJar = $jars | Where-Object { $_.Name -match "jar-with-dependencies|all|fat|uber" } | Select-Object -First 1
-          if (-not $appJar) { $appJar = $jars | Select-Object -Last 1 }
+          foreach ($jar in $jars) {
+            Write-Host " - $($jar.Name)"
+          }
 
-          Write-Host "✅ Selected: $($appJar.Name)" -ForegroundColor Green
-          "APP_JAR=$($appJar.FullName)" >> $env:GITHUB_ENV
+          $appJar = $jars |
+            Where-Object {
+              $_.Name -match "jar-with-dependencies|all|fat|uber"
+            } |
+            Select-Object -First 1
+
+          if (-not $appJar) {
+            $appJar = $jars |
+              Sort-Object Length -Descending |
+              Select-Object -First 1
+          }
+
+          Write-Host "Selected JAR: $($appJar.Name)"
+
           "APP_JAR_NAME=$($appJar.Name)" >> $env:GITHUB_ENV
 
-      # =========================================================
-      # 6. CREATE PORTABLE EXE
-      # =========================================================
-      - name: 🪟 Create Portable Windows EXE
+      - name: Create Portable Windows EXE
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
-          Write-Host "🪟 Creating portable Windows EXE..." -ForegroundColor Cyan
 
           $output = "target\portable"
-          if (Test-Path $output) { Remove-Item $output -Recurse -Force }
-          New-Item -ItemType Directory -Path $output -Force | Out-Null
 
-          Write-Host "📦 JAR: $env:APP_JAR_NAME"
-          Write-Host "📂 Output: $output"
+          if (Test-Path $output) {
+            Remove-Item $output -Recurse -Force
+          }
+
+          New-Item `
+            -ItemType Directory `
+            -Path $output `
+            -Force | Out-Null
+
+          Write-Host "Creating NodeShare portable application..."
 
           jpackage `
             --type app-image `
@@ -145,46 +177,59 @@ jobs:
             --description "NodeShare - Share and discover knowledge"
 
           if ($LASTEXITCODE -ne 0) {
-              Write-Host "❌ jpackage failed!" -ForegroundColor Red
-              exit 1
+            Write-Host "jpackage failed."
+            exit 1
           }
 
           $exe = "$output\NodeShare\NodeShare.exe"
+
           if (-not (Test-Path $exe)) {
-              Write-Host "❌ NodeShare.exe not created!" -ForegroundColor Red
-              exit 1
+            Write-Host "NodeShare.exe was not created."
+            Get-ChildItem $output -Recurse
+            exit 1
           }
 
-          Write-Host "✅ NodeShare.exe created successfully!" -ForegroundColor Green
-          Write-Host "📍 $exe"
+          Write-Host "NodeShare.exe created successfully."
+          Write-Host $exe
 
-      # =========================================================
-      # 7. CREATE ZIP
-      # =========================================================
-      - name: 🗜️ Create Portable ZIP
+      - name: Test Portable EXE
+        shell: pwsh
+        run: |
+          $exe = "target\portable\NodeShare\NodeShare.exe"
+
+          if (-not (Test-Path $exe)) {
+            Write-Host "EXE not found."
+            exit 1
+          }
+
+          Write-Host "EXE exists successfully."
+          Write-Host "Size: $((Get-Item $exe).Length) bytes"
+
+      - name: Create Portable ZIP
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
-          Write-Host "🗜️ Creating ZIP archive..." -ForegroundColor Cyan
 
           $source = "target\portable\NodeShare"
           $zip = "target\NodeShare-Portable-Windows.zip"
 
-          if (Test-Path $zip) { Remove-Item $zip -Force }
-
-          Compress-Archive -Path $source -DestinationPath $zip -CompressionLevel Optimal
-
-          if (-not (Test-Path $zip)) {
-              Write-Host "❌ ZIP creation failed!" -ForegroundColor Red
-              exit 1
+          if (Test-Path $zip) {
+            Remove-Item $zip -Force
           }
 
-          Write-Host "✅ ZIP created: $zip" -ForegroundColor Green
+          Compress-Archive `
+            -Path $source `
+            -DestinationPath $zip `
+            -CompressionLevel Optimal
 
-      # =========================================================
-      # 8. UPLOAD ARTIFACTS
-      # =========================================================
-      - name: 📤 Upload Portable ZIP
+          if (-not (Test-Path $zip)) {
+            Write-Host "ZIP creation failed."
+            exit 1
+          }
+
+          Write-Host "Portable ZIP created successfully."
+
+      - name: Upload Portable ZIP
         uses: actions/upload-artifact@v4
         with:
           name: NodeShare-Portable-Windows
@@ -192,7 +237,7 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-      - name: 📤 Upload Portable Folder
+      - name: Upload Portable Folder
         uses: actions/upload-artifact@v4
         with:
           name: NodeShare-Portable-Folder
@@ -200,7 +245,7 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-      - name: 📤 Upload JAR
+      - name: Upload JAR
         uses: actions/upload-artifact@v4
         with:
           name: NodeShare-JAR
