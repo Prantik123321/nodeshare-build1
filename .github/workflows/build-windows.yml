@@ -8,14 +8,19 @@ on:
 
 jobs:
   build:
-    name: Build NodeShare
+    name: Build NodeShare Portable
     runs-on: windows-latest
 
     steps:
-
-      - name: Checkout code
+      # =========================================================
+      # CHECKOUT
+      # =========================================================
+      - name: Checkout repository
         uses: actions/checkout@v4
 
+      # =========================================================
+      # JAVA 21
+      # =========================================================
       - name: Setup Java 21
         uses: actions/setup-java@v4
         with:
@@ -23,6 +28,9 @@ jobs:
           java-version: '21'
           cache: maven
 
+      # =========================================================
+      # JAVAFX SDK
+      # =========================================================
       - name: Download JavaFX SDK
         shell: pwsh
         run: |
@@ -39,6 +47,11 @@ jobs:
             -Uri $url `
             -OutFile $zip
 
+          if (-not (Test-Path $zip)) {
+            Write-Host "JavaFX download failed."
+            exit 1
+          }
+
           if (Test-Path $extract) {
             Remove-Item $extract -Recurse -Force
           }
@@ -51,11 +64,14 @@ jobs:
           $javafxFolder = Get-ChildItem `
             -Path $extract `
             -Directory |
-            Where-Object { $_.Name -like "javafx-sdk-*" } |
+            Where-Object {
+              $_.Name -like "javafx-sdk-*"
+            } |
             Select-Object -First 1
 
           if (-not $javafxFolder) {
             Write-Host "JavaFX SDK folder not found."
+            Get-ChildItem $extract -Recurse
             exit 1
           }
 
@@ -73,26 +89,38 @@ jobs:
           }
 
           Write-Host "JavaFX installed successfully."
+          Write-Host "Location: $javafxPath"
 
-      - name: Build JAR
+      # =========================================================
+      # BUILD JAR
+      # =========================================================
+      - name: Build NodeShare JAR
         shell: cmd
         env:
           JAVA_TOOL_OPTIONS: "--module-path=C:\javafx-sdk-21\lib --add-modules=javafx.controls,javafx.fxml"
         run: |
-          echo Building NodeShare...
+          echo ========================================
+          echo Building NodeShare
+          echo ========================================
 
           mvn clean package
 
           if errorlevel 1 (
-            echo Maven build failed.
+            echo.
+            echo Maven build FAILED.
             exit /b 1
           )
 
           echo.
-          echo ===== TARGET =====
+          echo Maven build completed successfully.
+          echo.
+          echo TARGET CONTENT:
           dir target
 
-      - name: Verify JAR
+      # =========================================================
+      # VERIFY JAR
+      # =========================================================
+      - name: Verify NodeShare JAR
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
@@ -100,20 +128,28 @@ jobs:
           $jar = "target\nodeshare.jar"
 
           if (-not (Test-Path $jar)) {
-            Write-Host "nodeshare.jar was not found."
-            Get-ChildItem target -Recurse
+            Write-Host "ERROR: target\nodeshare.jar was not found."
+            Write-Host ""
+            Write-Host "Files inside target:"
+            Get-ChildItem "target" -Recurse
             exit 1
           }
 
-          Write-Host "Found application JAR:"
-          Write-Host $jar
+          Write-Host "NodeShare JAR found."
+          Write-Host "Path: $jar"
+          Write-Host "Size: $((Get-Item $jar).Length) bytes"
 
-      - name: Create Portable Windows EXE
+      # =========================================================
+      # CREATE PORTABLE APP
+      # =========================================================
+      - name: Create Portable Windows Application
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
 
           $output = "target\portable"
+
+          Write-Host "Creating portable application..."
 
           if (Test-Path $output) {
             Remove-Item $output -Recurse -Force
@@ -123,8 +159,6 @@ jobs:
             -ItemType Directory `
             -Path $output `
             -Force | Out-Null
-
-          Write-Host "Creating portable NodeShare application..."
 
           jpackage `
             --type app-image `
@@ -140,7 +174,7 @@ jobs:
             --description "NodeShare"
 
           if ($LASTEXITCODE -ne 0) {
-            Write-Host "jpackage failed."
+            Write-Host "jpackage FAILED."
             exit 1
           }
 
@@ -148,14 +182,21 @@ jobs:
           $exe = "$appDir\NodeShare.exe"
 
           if (-not (Test-Path $exe)) {
-            Write-Host "NodeShare.exe was not created."
+            Write-Host "ERROR: NodeShare.exe was not created."
             Get-ChildItem $output -Recurse
             exit 1
           }
 
-          Write-Host "NodeShare.exe created successfully."
+          Write-Host ""
+          Write-Host "========================================"
+          Write-Host "Portable EXE created successfully!"
+          Write-Host "========================================"
+          Write-Host "EXE: $exe"
 
-      - name: Verify Portable Runtime
+      # =========================================================
+      # VERIFY PORTABLE RUNTIME
+      # =========================================================
+      - name: Verify Bundled Java Runtime
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
@@ -165,19 +206,25 @@ jobs:
           $runtime = "$appDir\runtime"
 
           if (-not (Test-Path $exe)) {
-            Write-Host "EXE missing."
+            Write-Host "NodeShare.exe is missing."
             exit 1
           }
 
           if (-not (Test-Path $runtime)) {
-            Write-Host "Bundled Java runtime missing."
+            Write-Host "Bundled Java runtime is missing."
             exit 1
           }
 
-          Write-Host "Portable application verified."
-          Write-Host "EXE: $exe"
-          Write-Host "Runtime: $runtime"
+          Write-Host "EXE verified."
+          Write-Host "Bundled Java runtime verified."
 
+          Write-Host ""
+          Write-Host "Portable application contents:"
+          Get-ChildItem $appDir
+
+      # =========================================================
+      # CREATE ZIP
+      # =========================================================
       - name: Create Portable ZIP
         shell: pwsh
         run: |
@@ -200,10 +247,15 @@ jobs:
             exit 1
           }
 
-          Write-Host "Portable ZIP created:"
-          Write-Host $zip
+          Write-Host ""
+          Write-Host "Portable ZIP created successfully."
+          Write-Host "ZIP: $zip"
+          Write-Host "Size: $((Get-Item $zip).Length) bytes"
 
-      - name: Upload Portable ZIP
+      # =========================================================
+      # UPLOAD PORTABLE ZIP
+      # =========================================================
+      - name: Upload Portable Windows Build
         uses: actions/upload-artifact@v4
         with:
           name: NodeShare-Portable-Windows
@@ -211,7 +263,10 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-      - name: Upload Portable Folder
+      # =========================================================
+      # UPLOAD PORTABLE FOLDER
+      # =========================================================
+      - name: Upload Portable Application Folder
         uses: actions/upload-artifact@v4
         with:
           name: NodeShare-Portable-Folder
@@ -219,7 +274,10 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-      - name: Upload JAR
+      # =========================================================
+      # UPLOAD JAR
+      # =========================================================
+      - name: Upload NodeShare JAR
         uses: actions/upload-artifact@v4
         with:
           name: NodeShare-JAR
