@@ -1,7 +1,5 @@
 package com.prantik.nodeshare.models;
 
-import java.util.List;
-
 public class Node {
     private String id;
     private String userId;
@@ -12,23 +10,13 @@ public class Node {
     private String fileName;
     private long fileSize;
     private String fileType;
-    private List<String> tags;
+    private String tags;
     private String createdAt;
     private String updatedAt;
     private boolean isSynced;
     
     public Node() {}
     
-    public Node(String id, String userId, String username, String title, String content) {
-        this.id = id;
-        this.userId = userId;
-        this.username = username;
-        this.title = title;
-        this.content = content;
-        this.isSynced = true;
-    }
-    
-    // Getters and Setters
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
     
@@ -56,8 +44,8 @@ public class Node {
     public String getFileType() { return fileType; }
     public void setFileType(String fileType) { this.fileType = fileType; }
     
-    public List<String> getTags() { return tags; }
-    public void setTags(List<String> tags) { this.tags = tags; }
+    public String getTags() { return tags; }
+    public void setTags(String tags) { this.tags = tags; }
     
     public String getCreatedAt() { return createdAt; }
     public void setCreatedAt(String createdAt) { this.createdAt = createdAt; }
