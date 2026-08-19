@@ -61,23 +61,9 @@ public class DatabaseHelper {
             )
         """;
         
-        String createQueueTable = """
-            CREATE TABLE IF NOT EXISTS offline_queue (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                operation TEXT NOT NULL,
-                node_id TEXT,
-                data TEXT NOT NULL,
-                retry_count INTEGER DEFAULT 0,
-                max_retries INTEGER DEFAULT 5,
-                status TEXT DEFAULT 'pending',
-                created_at TEXT
-            )
-        """;
-        
         try (Statement stmt = connection.createStatement()) {
             stmt.execute(createUsersTable);
             stmt.execute(createNodesTable);
-            stmt.execute(createQueueTable);
         }
     }
     
