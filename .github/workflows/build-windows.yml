@@ -26,7 +26,6 @@ jobs:
           Invoke-WebRequest -Uri "https://download2.gluonhq.com/openjfx/21.0.1/openjfx-21.0.1_windows-x64_bin-sdk.zip" -OutFile "javafx.zip"
           Expand-Archive -Path "javafx.zip" -DestinationPath "C:\" -Force
           
-          # Find the extracted folder
           $folder = Get-ChildItem -Path "C:\" -Directory | Where-Object { $_.Name -match "openjfx|javafx-sdk" } | Select-Object -First 1
           if ($folder) {
               Move-Item -Path $folder.FullName -Destination "C:\javafx-sdk-21" -Force
@@ -47,7 +46,7 @@ jobs:
         env:
           JAVA_TOOL_OPTIONS: --module-path=C:\javafx-sdk-21\lib --add-modules=javafx.controls,javafx.fxml
 
-      - name: 📦 Create Portable EXE
+      - name: 📦 Create Portable EXE with jpackage
         run: |
           echo "Creating portable EXE..."
           jpackage `
@@ -57,7 +56,7 @@ jobs:
             --main-jar nodeshare.jar `
             --main-class com.prantik.nodeshare.NodeShareApp `
             --dest target/portable `
-            --win-dir-chooser `
+            --win-console `
             --win-shortcut `
             --win-menu `
             --java-options "--module-path=C:\javafx-sdk-21\lib --add-modules=javafx.controls,javafx.fxml"
