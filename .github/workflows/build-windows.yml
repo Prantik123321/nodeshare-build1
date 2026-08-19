@@ -49,24 +49,34 @@ jobs:
       - name: 📦 List target directory (debug)
         run: |
           echo "Listing target directory..."
-          Get-ChildItem -Path target
+          Get-ChildItem -Path target -Recurse
         shell: pwsh
 
       - name: 📦 Create Portable EXE
         run: |
           echo "Creating portable EXE..."
-          # Find the actual JAR file name
-          $jarFile = Get-ChildItem -Path target -Filter "*.jar" | Where-Object { $_.Name -notlike "*original*" } | Select-Object -First 1
-          echo "Found JAR: $($jarFile.Name)"
           
-          jpackage `
-            --type app-image `
-            --name NodeShare `
-            --input target `
-            --main-jar $($jarFile.Name) `
-            --main-class com.prantik.nodeshare.NodeShareApp `
-            --dest target/portable `
-            --java-options "--module-path=C:\javafx-sdk-21\lib --add-modules=javafx.controls,javafx.fxml"
+          # Find the JAR file (exclude original and source jars)
+          $jarFile = Get-ChildItem -Path target -Filter "*.jar" | Where-Object { 
+              $_.Name -notlike "*original*" -and $_.Name -notlike "*sources*" 
+          } | Select-Object -First 1
+          
+          if ($jarFile) {
+              echo "Found JAR: $($jarFile.Name)"
+              
+              jpackage `
+                --type app-image `
+                --name NodeShare `
+                --input target `
+                --main-jar "$($jarFile.Name)" `
+                --main-class "com.prantik.nodeshare.NodeShareApp" `
+                --dest target/portable `
+                --java-options "--module-path=C:\javafx-sdk-21\lib --add-modules=javafx.controls,javafx.fxml"
+          } else {
+              echo "❌ No JAR file found in target directory!"
+              Get-ChildItem -Path target
+              exit 1
+          }
         shell: pwsh
 
       - name: 📤 Upload Portable EXE
