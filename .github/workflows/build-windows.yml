@@ -3,43 +3,43 @@ name: Build Portable Windows EXE
 on:
   push:
     branches: [ main ]
-  pull_request:
-    branches: [ main ]
   workflow_dispatch:
 
 jobs:
   build:
-    name: Build Portable EXE
     runs-on: windows-latest
+    env:
+      ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
 
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
 
       - name: 🔧 Setup Java 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
           java-version: '21'
           cache: 'maven'
 
-      - name: 📦 Download JavaFX SDK
+      - name: 📦 Download and Extract JavaFX
         run: |
           echo "Downloading JavaFX SDK..."
           curl -L -o javafx.zip "https://download2.gluonhq.com/openjfx/21.0.1/openjfx-21.0.1_windows-x64_bin-sdk.zip"
-          if (Test-Path javafx.zip) {
-              Expand-Archive -Path javafx.zip -DestinationPath C:\
-              Rename-Item -Path "C:\openjfx-21.0.1_windows-x64_bin-sdk" -NewName "C:\javafx-sdk-21"
+          
+          echo "Extracting JavaFX..."
+          Expand-Archive -Path javafx.zip -DestinationPath C:\
+          
+          # Find the actual extracted folder name
+          $extractedFolder = Get-ChildItem -Path C:\ -Directory | Where-Object { $_.Name -like "*openjfx*" } | Select-Object -First 1
+          
+          if ($extractedFolder) {
+              Rename-Item -Path $extractedFolder.FullName -NewName "javafx-sdk-21"
               echo "✅ JavaFX installed at C:\javafx-sdk-21"
           } else {
-              echo "❌ Failed to download JavaFX"
+              echo "❌ Failed to find extracted JavaFX folder"
               exit 1
           }
-        shell: pwsh
-
-      - name: 🔧 Set JavaFX Environment
-        run: |
-          echo "JAVA_TOOL_OPTIONS=--module-path=C:\javafx-sdk-21\lib --add-modules=javafx.controls,javafx.fxml" | Out-File -FilePath $env:GITHUB_ENV -Append
         shell: pwsh
 
       - name: 📦 Build Fat JAR
@@ -64,17 +64,11 @@ jobs:
             --java-options "--module-path=C:\javafx-sdk-21\lib --add-modules=javafx.controls,javafx.fxml"
         shell: pwsh
 
-      - name: 📤 Upload Portable EXE (Complete Folder)
+      - name: 📤 Upload Portable EXE
         uses: actions/upload-artifact@v4
         with:
           name: NodeShare-Portable
           path: target/portable/NodeShare
-
-      - name: 📤 Upload Installer
-        uses: actions/upload-artifact@v4
-        with:
-          name: NodeShare-Installer
-          path: target/installer
 
       - name: 📤 Upload JAR
         uses: actions/upload-artifact@v4
