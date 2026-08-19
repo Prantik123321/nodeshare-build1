@@ -1,4 +1,4 @@
-name: Build Windows EXE
+name: Build Portable Windows EXE
 
 on:
   push:
@@ -9,6 +9,7 @@ on:
 
 jobs:
   build:
+    name: Build Portable EXE
     runs-on: windows-latest
 
     steps:
@@ -22,17 +23,61 @@ jobs:
           java-version: '21'
           cache: 'maven'
 
-      - name: 📦 Build with Maven
-        run: mvn clean package -DskipTests
+      - name: 📦 Download JavaFX SDK
+        run: |
+          echo "Downloading JavaFX SDK..."
+          curl -L -o javafx.zip "https://download2.gluonhq.com/openjfx/21.0.1/openjfx-21.0.1_windows-x64_bin-sdk.zip"
+          if (Test-Path javafx.zip) {
+              Expand-Archive -Path javafx.zip -DestinationPath C:\
+              Rename-Item -Path "C:\openjfx-21.0.1_windows-x64_bin-sdk" -NewName "C:\javafx-sdk-21"
+              echo "✅ JavaFX installed at C:\javafx-sdk-21"
+          } else {
+              echo "❌ Failed to download JavaFX"
+              exit 1
+          }
+        shell: pwsh
+
+      - name: 🔧 Set JavaFX Environment
+        run: |
+          echo "JAVA_TOOL_OPTIONS=--module-path=C:\javafx-sdk-21\lib --add-modules=javafx.controls,javafx.fxml" | Out-File -FilePath $env:GITHUB_ENV -Append
+        shell: pwsh
+
+      - name: 📦 Build Fat JAR
+        run: mvn clean package assembly:single
+        env:
+          JAVA_TOOL_OPTIONS: --module-path=C:\javafx-sdk-21\lib --add-modules=javafx.controls,javafx.fxml
+
+      - name: 📦 Create Portable EXE with jpackage
+        run: |
+          echo "Creating portable EXE..."
+          jpackage `
+            --type app-image `
+            --name NodeShare `
+            --input target `
+            --main-jar nodeshare.jar `
+            --main-class com.prantik.nodeshare.NodeShareApp `
+            --dest target/portable `
+            --win-console `
+            --win-dir-chooser `
+            --win-shortcut `
+            --win-menu `
+            --java-options "--module-path=C:\javafx-sdk-21\lib --add-modules=javafx.controls,javafx.fxml"
+        shell: pwsh
+
+      - name: 📤 Upload Portable EXE (Complete Folder)
+        uses: actions/upload-artifact@v4
+        with:
+          name: NodeShare-Portable
+          path: target/portable/NodeShare
+
+      - name: 📤 Upload Installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: NodeShare-Installer
+          path: target/installer
 
       - name: 📤 Upload JAR
         uses: actions/upload-artifact@v4
         with:
           name: NodeShare-JAR
-          path: target/*.jar
-
-      - name: 📤 Upload EXE
-        uses: actions/upload-artifact@v4
-        with:
-          name: NodeShare-Windows
-          path: target/*.exe
+          path: target/nodeshare.jar
