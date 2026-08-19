@@ -1,5 +1,6 @@
 package com.prantik.nodeshare.controllers;
 
+import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
@@ -35,7 +36,7 @@ public class AuthController {
     private void createScene() {
         root = new VBox(20);
         root.setAlignment(Pos.CENTER);
-        root.setPadding(new javafx.geometry.Insets(40));
+        root.setPadding(new Insets(40));
         root.setStyle("-fx-background-color: linear-gradient(135deg, #667eea 0%, #764ba2 100%);");
         
         VBox card = new VBox(16);
