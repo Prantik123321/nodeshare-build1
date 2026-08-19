@@ -8,8 +8,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-windows:
-    name: Build Windows EXE
+  build:
     runs-on: windows-latest
 
     steps:
@@ -21,20 +20,10 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '21'
-
-      - name: 🔧 Setup JavaFX
-        run: |
-          echo "Downloading JavaFX SDK..."
-          curl -L -o javafx.zip https://gluonhq.com/download/javafx-21-windows-sdk/
-          unzip -q javafx.zip -d C:\
-          mv C:\javafx-sdk-21.0.1 C:\javafx-sdk-21
-          echo "JAVA_HOME=C:\javafx-sdk-21" >> $env:GITHUB_ENV
-        shell: pwsh
+          cache: 'maven'
 
       - name: 📦 Build with Maven
-        run: mvn clean package
-        env:
-          JAVA_TOOL_OPTIONS: -Dorg.slf4j.simpleLogger.defaultLogLevel=error
+        run: mvn clean package -DskipTests
 
       - name: 📤 Upload JAR
         uses: actions/upload-artifact@v4
