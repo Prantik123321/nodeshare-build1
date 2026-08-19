@@ -1,0 +1,45 @@
+<build>
+    <plugins>
+        <!-- Existing plugins -->
+
+        <!-- Launch4j for Windows EXE -->
+        <plugin>
+            <groupId>com.akathist.maven.plugins.launch4j</groupId>
+            <artifactId>launch4j-maven-plugin</artifactId>
+            <version>2.5.3</version>
+            <executions>
+                <execution>
+                    <id>l4j-clui</id>
+                    <phase>package</phase>
+                    <goals>
+                        <goal>launch4j</goal>
+                    </goals>
+                    <configuration>
+                        <headerType>gui</headerType>
+                        <outfile>target/NodeShare.exe</outfile>
+                        <jar>target/nodeshare-${project.version}.jar</jar>
+                        <errTitle>NodeShare</errTitle>
+                        <classPath>
+                            <mainClass>com.prantik.nodeshare.NodeShareApp</mainClass>
+                        </classPath>
+                        <jre>
+                            <minVersion>21</minVersion>
+                        </jre>
+                        <versionInfo>
+                            <fileVersion>1.0.0.0</fileVersion>
+                            <txtFileVersion>1.0.0</txtFileVersion>
+                            <fileDescription>NodeShare Application</fileDescription>
+                            <copyright>Prantik</copyright>
+                            <productVersion>1.0.0.0</productVersion>
+                            <txtProductVersion>1.0.0</txtProductVersion>
+                            <productName>NodeShare</productName>
+                            <companyName>Prantik</companyName>
+                            <internalName>NodeShare</internalName>
+                            <originalFilename>NodeShare.exe</originalFilename>
+                        </versionInfo>
+                    </configuration>
+                </execution>
+            </executions>
+        </plugin>
+    </plugins>
+</build>
